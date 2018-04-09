@@ -1,0 +1,42 @@
+---
+- hosts: application-server
+vars:
+  webapp_source_path: ./target/HB-Layered-App.war
+  webapp_target_name: demo
+  tomcat_app_base: /usr/local/tomcat/webapps
+tasks:
+  - name: stop tomcat
+    service: 
+      name: tomcat
+      state: stopped
+      become: true
+  - name: wait tomcat shut down
+    wait_for: 
+      port: 8080
+      state: stopped
+      timeout: 60
+  - name: clean uo {{ webapp_target_name }}
+    file: 
+      name: {{ tomcat_app_base }}/{{ webapp_target_name }}
+      state: absent
+  - name: delete previous backup
+    file: 
+      path: {{ tomcat_app_base }}/{{ webapp_target_name }}.war.previous
+      state: absent
+  - name: create new backup
+    command: mv {{ tomcat_app_base }}/{{ webapp_target_name }}.war {{ tomcat_app_base }}/{{ webapp_target_name }}.war.previous
+    ignore_errors: yes
+  - name: copy webapp
+    copy: src={{webapp_source_path}} dest={{ tomcat_app_base }}/{{ webapp_target_name }}.war 
+    mode: 660
+  - name: start tomcat
+    service: 
+      name: tomcat
+      enabled: yes
+      state: started
+    become: true
+  - name: wait for tomcat to start
+      wait_for: 
+        port: 8080
+        timeout: 60 
+      
